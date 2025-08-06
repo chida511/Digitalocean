@@ -1,33 +1,31 @@
-name: Deploy Node.js App to DigitalOcean
+name: Deploy Node App to DigitalOcean
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v2
 
-    - name: Copy project to DigitalOcean
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.DO_HOST }}
-        username: ${{ secrets.DO_USER }}
-        key: ${{ secrets.DO_SSH_KEY }}
-        source: "."
-        target: "/root/myapp"
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
 
-    - name: Run Docker Compose on server
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.DO_HOST }}
-        username: ${{ secrets.DO_USER }}
-        key: ${{ secrets.DO_SSH_KEY }}
-        script: |
-          cd /root/myapp
+    - name: Deploy to Droplet
+      run: |
+        ssh root@${{ secrets.DROPLET_IP }} << 'EOF'
+          cd ~/myapp
+          git pull origin main
           docker-compose down
           docker-compose up -d --build
+        EOF
+
